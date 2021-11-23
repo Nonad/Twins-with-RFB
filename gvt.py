@@ -547,7 +547,7 @@ def alt_gvt_base(pretrained=False, **kwargs):
 
     if pretrained:
         checkpoint = torch.load('./checkpoint/checkpoint.pth')
-        model.load_state_dict(checkpoint['model'],strict=False)
+        model.load_state_dict(checkpoint, strict=False)
         print('load pretrained')
     return model
 
