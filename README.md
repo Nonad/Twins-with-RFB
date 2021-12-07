@@ -1,5 +1,18 @@
 # Twins-with-RFB
 
+*upd:*
+
+- [x] overfitting
+
+- [x] output a number
+- [x] output different numbers for different pics
+- [ ] classification
+- [ ] a *more correct* number
+
+071221
+
+
+
 https://github.com/Meituan-AutoML/Twins
 
 https://github.com/dk-liang/TransCrowd
@@ -14,7 +27,7 @@ _ (:з)∠) _
 
 I am training it for a counting task
 
-Yes, IT IS ABLE TO RUN in environment which satisfies requirements of TransCrowd （Don't forget to install NNI and taking into account that the version of timm is older in Twins）
+Yes, IT IS ABLE TO RUN in environment which satisfies requirements of TransCrowd （Don't forget to install NNI and take into account that the version of timm is older in Twins）
 
 There is one of Twins' weight files (alt_gvt_base.pth, see Twins) used for my classification test (in folder  *cls*  )
 

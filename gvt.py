@@ -8,6 +8,8 @@ from timm.models.vision_transformer import _cfg
 from timm.models.vision_transformer import Block as TimmBlock
 from RFB import BasicRFB
 
+import torch.nn.functional as F
+
 
 import cv2
 import numpy as np
@@ -243,7 +245,7 @@ class PyramidVisionTransformer(nn.Module):
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dims[-1]))
 
         # classification head
-        # self.head = nn.Linear(embed_dims[-1], num_classes) if num_classes > 0 else nn.Identity()
+        self.head = nn.Linear(embed_dims[-1], num_classes) if num_classes > 0 else nn.Identity()
 
         # init weights
         for pos_emb in self.pos_embeds:
@@ -253,13 +255,17 @@ class PyramidVisionTransformer(nn.Module):
         # self.RFB.append()
 
         self.op1 = nn.Sequential(
+            # nn.ReLU(),          # 241121 recover and found useless
+            # nn.Softmax(dim=0),
+            # nn.Linear(784, 32),  # (input_size / 8) ** 2, 291121 for extended input_size
             # nn.ReLU(),
-            nn.Softmax(dim=0),
-            nn.Linear(784, 128),
-           # nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Softmax(dim=0),
-            nn.Linear(128, 1)
+            nn.BatchNorm2d(1, eps=1e-5, momentum=0.01, affine=True)  #061221
+            # nn.Dropout(0.5),
+            # nn.Softmax(dim=0),                            #291121 comment
+            # nn.Linear(128, 32),  # 231121  (128,1)
+            # nn.Softmax(dim=0),   # 231121
+            # nn.Linear(32, 1)     # 231121                 #291121
+
         )
 
         self.apply(self._init_weights)
@@ -290,7 +296,7 @@ class PyramidVisionTransformer(nn.Module):
 
     def reset_classifier(self, num_classes, global_pool=''):
         self.num_classes = num_classes
-        # self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
     def forward_features(self, x):
         B = x.shape[0]
@@ -321,22 +327,38 @@ class PyramidVisionTransformer(nn.Module):
         # img = img*255/maxv
         # img = np.uint8(img).transpose(1, 2, 0)
         # cv2.imshow('img', img)
-        # cv2.waitKey()
+        # cv2.waitKey(10000)
 
         x = self.forward_features(x)
-        RFB = BasicRFB(in_planes=x.shape[1], out_planes=1)
+        RFB = BasicRFB(in_planes=x.shape[1], out_planes=1, scale=0.3)
         RFB.cuda()
         rx = RFB(x)
         # print(f'RFB {rx.shape}')
 
-        x = rx.view(rx.shape[0], -1)
-        # print(x.shape)
+        # img = rx.cpu()
+        # img = img[0, :, :, :]
+        # img = torch.squeeze(img).detach().numpy()
+        # maxv = img.max()
+        # img = img*255/maxv
+        # img = np.uint8(img).transpose(0, 1)
+        # cv2.imshow('img', img)
+        # cv2.waitKey(10000)
 
 
-        x = self.op1(x)
+        rx = rx.view(rx.shape[0], rx.shape[1], -1)
+        px = F.adaptive_avg_pool1d(rx, (784))
+        # px = self.op1(rx)
+        px = px.view(px.shape[0], -1)
+        # print(px.shape)
+        # sf = nn.Softmax(dim=0)
+
+
+        # x = self.op1(px)   # 051221
+        x = px.sum(dim=1).unsqueeze(1)  # 051221
 
         # print(f'{x.shape}')
         # x = self.head(x)
+
 
         return x
 
@@ -384,6 +406,7 @@ class CPVTV2(PyramidVisionTransformer):
         )
 
 
+
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -423,23 +446,30 @@ class CPVTV2(PyramidVisionTransformer):
             # if i < len(self.depths) - 1:
             #     x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
             x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+            bn = nn.BatchNorm2d(x.shape[1], eps=1e-5, momentum=0.01, affine=True)  #061221
+            bn.cuda()
+            bx = bn(x)  # 061221
 
-            # print(x.shape)
+            # print(bx.shape)
             if i > 0:
-                # nx = self.norm(x)
+                # nx = self.norm(x)  # norm[768] not match x[b, c, a, a]
                 # nx = nx.mean(dim=1)
 
                 if i == 1:
-                    base = x
+                    base = bx
                     H0 = H
-                    outc = x.shape[1]
+                    outc = bx.shape[1]
                 else:
-                    upx = nn.ConvTranspose2d(x.shape[1], outc, kernel_size=H0+1-H)
+                    upx = nn.ConvTranspose2d(bx.shape[1], outc, kernel_size=H0+1-H)
                     upx.cuda()
                     tot = base + upx(x)
 
 
         # x = self.norm(x)
+
+        # a = tot.shape[-1]
+        # tot = tot.view(tot.shape[0], tot.shape[1], -1).mean(dim=1)
+        # tot = tot.view(tot.shape[0], tot.shape[1], a, a)
 
         # return x.mean(dim=1)  # GAP here
         return tot
@@ -546,8 +576,9 @@ def alt_gvt_base(pretrained=False, **kwargs):
     model.default_cfg = _cfg()
 
     if pretrained:
-        checkpoint = torch.load('./checkpoint/checkpoint.pth')
+        checkpoint = torch.load('./save_file/model_best.pth') 
         model.load_state_dict(checkpoint, strict=False)
+        # 231121 checkpoint['model']  keyerror: model --just use checkpoint
         print('load pretrained')
     return model
 

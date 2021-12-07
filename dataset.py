@@ -34,12 +34,12 @@ class listDataset(Dataset):
 
         fname = self.lines[index]['fname']
         img = self.lines[index]['img']
-        gt_count = self.lines[index]['gt_count']
+        gt_count = self.lines[index]['gt']
 
         '''data augmention'''
-        if self.train == True:
-            if random.random() > 0.5:
-                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        # if self.train == True:
+        #     if random.random() > 0.5:
+        #         img = img.transpose(Image.FLIP_LEFT_RIGHT)
 
             # if random.random() > self.args['random_noise']:
             #     proportion = random.uniform(0.004, 0.015)
@@ -68,15 +68,16 @@ class listDataset(Dataset):
 
             width, height = img.shape[2], img.shape[1]
 
-            m = int(width / 224)
-            n = int(height / 224)
+            a = 224  # self.args['input_size']
+            m = int(width / a)
+            n = int(height / a)
             for i in range(0, m):
                 for j in range(0, n):
 
                     if i == 0 and j == 0:
-                        img_return = img[:, j * 224: 224 * (j + 1), i * 224:(i + 1) * 224].cuda().unsqueeze(0)
+                        img_return = img[:, j * a: a * (j + 1), i * a:(i + 1) * a].cuda().unsqueeze(0)
                     else:
-                        crop_img = img[:, j * 224: 224 * (j + 1), i * 224:(i + 1) * 224].cuda().unsqueeze(0)
+                        crop_img = img[:, j * a: a * (j + 1), i * a:(i + 1) * a].cuda().unsqueeze(0)
 
                         img_return = torch.cat([img_return, crop_img], 0).cuda()
             return fname, img_return, gt_count

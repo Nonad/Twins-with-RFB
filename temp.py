@@ -55,7 +55,7 @@ def main(args):
 
     model = create_model(
         args['model_type'],
-        pretrained=False,
+        pretrained=args['pretrained'],
         drop_rate=args['drop'],
         drop_path_rate=args['drop_path'],
         drop_block_rate=None,
@@ -90,7 +90,7 @@ def main(args):
         train(train_data, model, criterion, optimizer, epoch, args, scheduler)
         end1 = time.time()
 
-        if epoch % 10 == 0 and epoch >=5:
+        if epoch % 5 == 0 and epoch >=5:
             prec1 = validate(val_data, model, args)
             end2 = time.time()
             if prec1 < args['best_pred']:
@@ -98,13 +98,13 @@ def main(args):
                 args['best_pred'] = prec1
             print(' * best MAE {mae:.3f} '.format(mae=args['best_pred']), args['save_path'], end1 - start, end2 - end1)
 
-            save_checkpoint({
-                    'epoch': epoch + 1,
-                    'arch': args['pre'],
-                    'state_dict': model.state_dict(),
-                    'best_prec1': args['best_pred'],
-                    'optimizer': optimizer.state_dict(),
-            }, is_best, args['save_path'])
+            # save_checkpoint({
+            #         'epoch': epoch + 1,
+            #         'arch': args['pre'],
+            #         'state_dict': model.state_dict(),
+            #         'best_prec1': args['best_pred'],
+            #         'optimizer': optimizer.state_dict(),
+            # }, is_best, args['save_path'])
 
 def pre_data(datalist, args, train):
     print('loading dataset')
@@ -134,8 +134,8 @@ def train(data, model, criterion, optimizer, epoch, args, scheduler):
         dataset.listDataset(data, args['save_path'],
                             shuffle=True,
                             transform=transforms.Compose([
-                                transforms.Resize(args['input_size'], interpolation=3),
-                                transforms.RandomCrop(args['input_size'], padding=12),
+                                # transforms.Resize(args['input_size'], interpolation=3),
+                                # transforms.RandomCrop(args['input_size'], padding=12),
                                 transforms.ToTensor(),
                                 # transforms.ColorJitter(0.4),
                                 # transforms.RandomHorizontalFlip(),
@@ -163,6 +163,8 @@ def train(data, model, criterion, optimizer, epoch, args, scheduler):
         img = img.cuda()
         out1 = model(img)
         gt = gt.type(torch.FloatTensor).cuda().unsqueeze(1)
+
+        # print(f'{out1}\n{gt}')
 
         loss = criterion(out1, gt)
         losses.update(loss.item(), img.size(0))
@@ -219,7 +221,11 @@ def validate(data, model, args):
             out1 = model(img)
             cnt = torch.sum(out1).item()
 
-        gt =torch.sum(gt).item()
+
+        gt = torch.sum(gt).item()
+
+        # print(f'{out1}\n{gt}')
+
         mae += abs(gt - cnt)
         mse += abs(gt - cnt) * abs(gt - cnt)
 
@@ -236,12 +242,12 @@ def validate(data, model, args):
 
 
 if __name__ == '__main__':
-    # tuner_params = nni.get_next_parameter()
-    # logger.debug(tuner_params)
-    # params = vars(merge_parameter(return_args, tuner_params))
+    tuner_params = nni.get_next_parameter()
+    logger.debug(tuner_params)
+    params = vars(merge_parameter(return_args, tuner_params))
     # print(params)
 
-    params = vars(return_args)
+    # params = vars(return_args)
     print(params)
     # main(params)
     main(params)

@@ -21,6 +21,8 @@ parser.add_argument('--test_dataset', type=str, default='images',
                     help='choice test dataset')
 parser.add_argument('--pre', type=str, default=None,
                     help='pre-trained model directory')
+parser.add_argument('--pretrained', type=int, default=0,
+                    help='pre-trained model directory')
 # parser.add_argument('--pre', type=str, default='./save_file/A_baseline_4/model_best_66.1.pth',
 #                     help='pre-trained model directory')
 
@@ -42,13 +44,13 @@ parser.add_argument('--gpu_id', type=str, default='0',
                     help='gpu id')
 
 # nni config
-parser.add_argument('--lr', type=float, default=5e-4,
+parser.add_argument('--lr', type=float, default=1e-5,
                     help='learning rate')
 parser.add_argument('--model_type', type=str, default='alt_gvt_base',
                     help='model type')
 
 # gvt
-parser.add_argument('--input-size', type=int, default=224,
+parser.add_argument('--input_size', type=int, default=224,
                     help='images input size')
 parser.add_argument('--drop', type=float, default=0.0,
                     help='dropout rate')
